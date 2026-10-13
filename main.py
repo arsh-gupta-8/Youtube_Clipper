@@ -27,6 +27,22 @@ def get_video_title(url):
     return "YouTube Video Highlights"
 
 
+def get_comments_yt_dlp(url, max_comments=500):
+  ydl_opts = {
+    'getcomments': True,
+    'skip_download': True,
+    'extract_flat': True,
+    'quiet': True,
+  }
+  try:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+      info = ydl.extract_info(url, download=False)
+      return [{'text': c.get('text', '')} for c in info.get('comments', [])[:max_comments]]
+  except Exception as e:
+    print(f"Error fetching comments: {e}")
+    return []
+
+
 def hms_to_seconds(hms):
   hms = hms.split(":")
   hms.reverse()
@@ -88,7 +104,10 @@ def download_video(videoURL, startTime, endTime, clipName, comment):
 def makeSegmentList(url):
   times.clear()
 
-  comments = downloader.get_comments_from_url(url, sort_by=SORT_BY_POPULAR)
+  # comments = downloader.get_comments_from_url(url, sort_by=SORT_BY_POPULAR)
+  comments = get_comments_yt_dlp(url, max_comments=500)
+  comments_list = list(comments)
+  print(f"Total comments fetched: {len(comments_list)}")
 
   for index, comment in enumerate(comments):
     if index > 500:
@@ -110,7 +129,6 @@ def makeSegmentList(url):
           "clipTime": hmsTime,
           "url": f"{url}&t={hmsTime}s",
           "comment": YTcomment,
-          "title": "clips/" + get_video_title(url).replace(" ", "_")
         })
 
   return times
@@ -129,12 +147,18 @@ def process_url():
   if not youtube_url:
     return jsonify({"error": "No URL provided"}), 400
 
-  results = makeSegmentList(youtube_url)
-  print(f"Found {len(results)} segments.")
-  if results is None:
-    return jsonify({"error": "Invalid YouTube URL"}), 400
+  try:
+    video_title = get_video_title(youtube_url)
+    results = makeSegmentList(youtube_url)
+    print(f"Found {len(results)} segments.")
 
-  return jsonify({"success": True, "clips": results})
+    return jsonify({
+        "success": True, 
+        "videoTitle": video_title,
+        "clips": results
+    })
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
 
 
 @app.route('/download-clip', methods=['POST'])
