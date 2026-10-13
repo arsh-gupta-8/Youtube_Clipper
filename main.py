@@ -10,6 +10,23 @@ timeStampPattern = r"(?:(\d+):)?(\d+):(\d\d)"
 
 times = []
 
+
+def get_video_title(url):
+  """Fetches the video title without downloading the video stream."""
+  ydl_opts = {
+    'quiet': True,
+    'no_warnings': True,
+    'skip_download': True
+  }
+  try:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+      info = ydl.extract_info(url, download=False)
+      return info.get('title', 'Unknown Title')
+  except Exception as e:
+    print(f"Error fetching title: {e}")
+    return "YouTube Video Highlights"
+
+
 def hms_to_seconds(hms):
   hms = hms.split(":")
   hms.reverse()
@@ -42,16 +59,13 @@ def download_video(videoURL, startTime, endTime, clipName, comment):
   print(f"Requesting segment from {startTime} to {endTime}...")
   print(f"Comment: {comment}")
 
-  confirmation = input(f"Do you want to download this segment? (y/n): ")
-  if confirmation.lower() == 'y':
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-      ydl.download([videoURL])
-      
-    print(f"Download complete! Saved as: {clipName}")
+  with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    ydl.download([videoURL])
+    
+  print(f"Download complete! Saved as: {clipName}")
 
-    return 1
+  return 1
 
-  return 0
 
 
 # for index, comment in enumerate(comments):
@@ -71,7 +85,7 @@ def download_video(videoURL, startTime, endTime, clipName, comment):
 #       times.append(hms_to_seconds(hms=timeStamp))
 
 
-def makeSegmentList(url, title):
+def makeSegmentList(url):
   times.clear()
 
   comments = downloader.get_comments_from_url(url, sort_by=SORT_BY_POPULAR)
@@ -96,7 +110,7 @@ def makeSegmentList(url, title):
           "clipTime": hmsTime,
           "url": f"{url}&t={hmsTime}s",
           "comment": YTcomment,
-          "title": "clips/" + title
+          "title": "clips/" + get_video_title(url).replace(" ", "_")
         })
 
   return times
@@ -111,17 +125,38 @@ def index():
 def process_url():
   data = request.get_json()
   youtube_url = data.get('url')
-  youtube_title = data.get('title')
 
   if not youtube_url:
     return jsonify({"error": "No URL provided"}), 400
 
-  results = makeSegmentList(youtube_url, youtube_title)
+  results = makeSegmentList(youtube_url)
   print(f"Found {len(results)} segments.")
   if results is None:
     return jsonify({"error": "Invalid YouTube URL"}), 400
 
   return jsonify({"success": True, "clips": results})
+
+
+@app.route('/download-clip', methods=['POST'])
+def download_clip():
+  data = request.get_json()
+  videoURL = data.get('url')
+  startTime = data.get('startTime')
+  endTime = data.get('endTime')
+  clipName = data.get('clipName')
+  comment = data.get('comment')
+
+  if not all([videoURL, startTime, endTime, clipName]):
+    return jsonify({"error": "Missing required parameters"}), 400
+
+  try:
+    download_video(videoURL, startTime, endTime, clipName, comment)
+    return jsonify({
+      "success": True, 
+      "message": f"Successfully saved {clipName}"
+    })
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

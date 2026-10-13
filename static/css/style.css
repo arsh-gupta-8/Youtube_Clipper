@@ -47,7 +47,6 @@ body {
   font-size: 0.95rem;
 }
 
-/* Search Bar Inputs */
 .search-box {
   background-color: var(--card-bg);
   padding: 0.5rem;
@@ -97,7 +96,6 @@ body {
   display: none;
 }
 
-/* Results & Clip Cards Layout */
 .results-container {
   margin-top: 2rem;
 }
@@ -156,11 +154,10 @@ body {
   font-style: italic;
 }
 
-/* Embedded YouTube Aspect Ratio Container */
 .video-wrapper {
   position: relative;
   width: 100%;
-  padding-bottom: 56.25%; /* 16:9 ratio */
+  padding-bottom: 56.25%;
   border-radius: 8px;
   overflow: hidden;
   background-color: #000;
@@ -175,7 +172,6 @@ body {
   border: none;
 }
 
-/* Open Link Button */
 .direct-link {
   display: inline-block;
   align-self: flex-start;
@@ -191,7 +187,6 @@ body {
   color: #a5b4fc;
 }
 
-/* Spinner Animation */
 .loader {
   width: 16px;
   height: 16px;
@@ -205,4 +200,48 @@ body {
 @keyframes rotation {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.download-btn {
+  background-color: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.download-btn:hover {
+  background-color: #059669;
+}
+
+.download-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dl-status {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.dl-status.success {
+  color: #34d399;
+}
+
+.dl-status.error {
+  color: #f87171;
 }

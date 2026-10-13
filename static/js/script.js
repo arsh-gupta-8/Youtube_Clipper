@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsContainer = document.getElementById('resultsContainer');
   const resultsList = document.getElementById('resultsList');
 
+  let currentVideoTitle = 'clip';
+
   urlForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -26,13 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await fetch('/process-url', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: inputUrl,
-          title: 'highlight_clip'
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: inputUrl }),
       });
 
       const data = await response.json();
@@ -41,9 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.error || 'Failed to process YouTube comments.');
       }
 
-      if (!data.clips || data.clips.length === 0) {
-        showError('No timestamp comments found for this video.');
-        return;
+      currentVideoTitle = data.videoTitle || 'highlight_clip';
+      const resultsHeader = document.querySelector('.results-header');
+      if (resultsHeader) {
+        resultsHeader.textContent = `Highlights for: "${currentVideoTitle}"`;
       }
 
       renderClips(data.clips, inputUrl);
@@ -65,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `https://www.youtube.com/embed/${videoId}?start=${startSeconds}`
         : null;
 
+      const safeTitle = currentVideoTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const clipFileName = `clips/${safeTitle}_clip_${index + 1}.mp4`;
+
       const card = document.createElement('div');
       card.className = 'result-card';
 
@@ -85,10 +86,68 @@ document.addEventListener('DOMContentLoaded', () => {
             </iframe>
           </div>
         ` : ''}
+
+        <div class="card-actions">
+          <button class="download-btn" id="dl-btn-${index}">
+            <span class="dl-text">Download Clip</span>
+            <span class="loader dl-loader" style="display: none;"></span>
+          </button>
+        </div>
+        <div class="dl-status" id="dl-status-${index}"></div>
       `;
 
       resultsList.appendChild(card);
+
+      const downloadBtn = card.querySelector(`#dl-btn-${index}`);
+      downloadBtn.addEventListener('click', () => {
+        handleDownload(originalUrl, clip, clipFileName, index);
+      });
     });
+  }
+
+  async function handleDownload(videoUrl, clip, clipName, index) {
+    const downloadBtn = document.getElementById(`dl-btn-${index}`);
+    const dlText = downloadBtn.querySelector('.dl-text');
+    const dlLoader = downloadBtn.querySelector('.dl-loader');
+    const statusDiv = document.getElementById(`dl-status-${index}`);
+
+    downloadBtn.disabled = true;
+    dlText.textContent = 'Downloading...';
+    dlLoader.style.display = 'inline-block';
+    statusDiv.textContent = '';
+    statusDiv.className = 'dl-status';
+
+    try {
+      const response = await fetch('/download-clip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: videoUrl,
+          startTime: clip.startTime,
+          endTime: clip.endTime,
+          clipName: clipName,
+          comment: clip.comment
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to download clip');
+      }
+
+      statusDiv.textContent = `Saved as ${clipName}`;
+      statusDiv.classList.add('success');
+      dlText.textContent = 'Downloaded!';
+
+    } catch (err) {
+      statusDiv.textContent = `Error: ${err.message}`;
+      statusDiv.classList.add('error');
+      dlText.textContent = 'Retry Download';
+      downloadBtn.disabled = false;
+    } finally {
+      dlLoader.style.display = 'none';
+    }
   }
 
   function extractVideoId(url) {
