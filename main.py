@@ -2,21 +2,13 @@ from youtube_comment_downloader import YoutubeCommentDownloader, SORT_BY_POPULAR
 from time import sleep
 import re
 import yt_dlp
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-
 downloader = YoutubeCommentDownloader()
-
-videoTitle = "Jynxzi | 3v3 mode"
-videoURL = "https://www.youtube.com/watch?v=oF9Tm4LXm3o" 
-
-comments = downloader.get_comments_from_url(videoURL, sort_by=SORT_BY_POPULAR)
-times = []
-dwnldNumber = 0
-
 timeStampPattern = r"(?:(\d+):)?(\d+):(\d\d)"
 
+times = []
 
 def hms_to_seconds(hms):
   hms = hms.split(":")
@@ -62,22 +54,75 @@ def download_video(videoURL, startTime, endTime, clipName, comment):
   return 0
 
 
-for index, comment in enumerate(comments):
-  if index == 500:
-    break 
-  timeStamp = re.search(timeStampPattern, comment['text'])
-  YTcomment = comment['text']
-  if timeStamp:
-    timeStamp = timeStamp.group()
-    clipped = False
-    for clipTime in times:
-      if hms_to_seconds(hms=timeStamp) in range(clipTime - 30, clipTime + 30):
-        clipped = True
-        break
-    if not clipped and hms_to_seconds(hms=timeStamp) > 30:
-      dwnldNumber += download_video(videoURL=videoURL, startTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) - 30), endTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) + 30), clipName=f"{videoTitle}_{dwnldNumber}.mp4", comment=YTcomment)
-      times.append(hms_to_seconds(hms=timeStamp))
+# for index, comment in enumerate(comments):
+#   if index == 500:
+#     break 
+#   timeStamp = re.search(timeStampPattern, comment['text'])
+#   YTcomment = comment['text']
+#   if timeStamp:
+#     timeStamp = timeStamp.group()
+#     clipped = False
+#     for clipTime in times:
+#       if hms_to_seconds(hms=timeStamp) in range(clipTime - 30, clipTime + 30):
+#         clipped = True
+#         break
+#     if not clipped and hms_to_seconds(hms=timeStamp) > 30:
+#       dwnldNumber += download_video(videoURL=videoURL, startTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) - 30), endTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) + 30), clipName=f"{videoTitle}_{dwnldNumber}.mp4", comment=YTcomment)
+#       times.append(hms_to_seconds(hms=timeStamp))
+
+
+def makeSegmentList(url, title):
+  times.clear()
+
+  comments = downloader.get_comments_from_url(url, sort_by=SORT_BY_POPULAR)
+
+  for index, comment in enumerate(comments):
+    if index > 500:
+      break 
+    timeStamp = re.search(timeStampPattern, comment['text'])
+    YTcomment = comment['text']
+    if timeStamp:
+      timeStamp = timeStamp.group()
+      clipped = False
+      hmsTime = hms_to_seconds(hms=timeStamp)
+      for clipTime in times:
+        if hmsTime in range(clipTime['clipTime'] - 30, clipTime['clipTime'] + 30):
+          clipped = True
+          break
+      if not clipped and hmsTime > 30:
+        times.append({
+          "startTime": seconds_to_hms(hmsTime - 30),
+          "endTime": seconds_to_hms(hmsTime + 30),
+          "clipTime": hmsTime,
+          "url": f"{url}&t={hmsTime}s",
+          "comment": YTcomment,
+          "title": "clips/" + title
+        })
+
+  return times
+
 
 @app.route('/')
 def index():
   return render_template('index.html')
+
+
+@app.route('/process-url', methods=['POST'])
+def process_url():
+  data = request.get_json()
+  youtube_url = data.get('url')
+  youtube_title = data.get('title')
+
+  if not youtube_url:
+    return jsonify({"error": "No URL provided"}), 400
+
+  results = makeSegmentList(youtube_url, youtube_title)
+  print(f"Found {len(results)} segments.")
+  if results is None:
+    return jsonify({"error": "Invalid YouTube URL"}), 400
+
+  return jsonify({"success": True, "clips": results})
+
+
+if __name__ == '__main__':
+  app.run(debug=True)

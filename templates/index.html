@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Timestamp Highlights</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>YouTube Timestamp Highlight Search</h1>
+      <p>Enter a YouTube link to extract video segments from top comments.</p>
+    </div>
+
+    <form id="urlForm">
+      <div class="search-box">
+        <input 
+          type="text" 
+          id="urlInput" 
+          class="search-input" 
+          placeholder="https://www.youtube.com/watch?v=..." 
+          autocomplete="off"
+          required
+        />
+        <button type="submit" id="searchBtn" class="search-button">
+          <span id="btnText">Search</span>
+          <span id="btnLoader" class="loader" style="display: none;"></span>
+        </button>
+      </div>
+      <div id="errorMessage" class="error-message"></div>
+    </form>
+
+    <div id="resultsContainer" class="results-container">
+      <div class="results-header">Extracted Highlight Clips</div>
+      <div id="resultsList" class="results-list"></div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
