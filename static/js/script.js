@@ -58,27 +58,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoId = extractVideoId(originalUrl);
 
     clips.forEach((clip, index) => {
-      const startSeconds = parseHmsToSeconds(clip.startTime) + 30;
-      const embedUrl = videoId 
-        ? `https://www.youtube.com/embed/${videoId}?start=${startSeconds}`
-        : null;
+      const card = document.createElement('div');
+      card.className = 'result-card';
+
+      let currentStartTime = clip.startTime;
+      let currentEndTime = clip.endTime;
 
       const safeTitle = currentVideoTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
       const clipFileName = `clips/${safeTitle}_clip_${index + 1}.mp4`;
 
-      const card = document.createElement('div');
-      card.className = 'result-card';
+      const initialStartSec = parseHmsToSeconds(currentStartTime);
+      const embedUrl = videoId 
+        ? `https://www.youtube.com/embed/${videoId}?start=${initialStartSec}`
+        : null;
 
       card.innerHTML = `
         <div class="clip-header">
           <span class="clip-number">Clip #${index + 1}</span>
-          <span class="timestamp-badge">${clip.startTime} - ${clip.endTime}</span>
         </div>
         <p class="clip-comment">"${escapeHtml(clip.comment)}"</p>
         
+        <div class="time-adjuster-panel">
+          <div class="time-inputs-group">
+            <div class="time-field">
+              <label for="start-time-${index}">Start Time</label>
+              <input 
+                type="text" 
+                id="start-time-${index}" 
+                value="${currentStartTime}" 
+                placeholder="MM:SS"
+              />
+            </div>
+            <span class="time-separator">to</span>
+            <div class="time-field">
+              <label for="end-time-${index}">End Time</label>
+              <input 
+                type="text" 
+                id="end-time-${index}" 
+                value="${currentEndTime}" 
+                placeholder="MM:SS"
+              />
+            </div>
+          </div>
+          <div class="duration-tag" id="duration-${index}">
+            Duration: ${calculateDuration(currentStartTime, currentEndTime)}s
+          </div>
+        </div>
+
         ${embedUrl ? `
           <div class="video-wrapper">
             <iframe 
+              id="iframe-${index}"
               src="${embedUrl}" 
               title="YouTube clip player" 
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -88,8 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : ''}
 
         <div class="card-actions">
+          <a href="${clip.url}" target="_blank" rel="noopener noreferrer" class="direct-link">
+            Open on YouTube ↗
+          </a>
           <button class="download-btn" id="dl-btn-${index}">
-            <span class="dl-text">Download Clip</span>
+            <span class="dl-text">Download Segment</span>
             <span class="loader dl-loader" style="display: none;"></span>
           </button>
         </div>
@@ -98,14 +131,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultsList.appendChild(card);
 
+      const startInput = card.querySelector(`#start-time-${index}`);
+      const endInput = card.querySelector(`#end-time-${index}`);
+      const durationTag = card.querySelector(`#duration-${index}`);
       const downloadBtn = card.querySelector(`#dl-btn-${index}`);
+      const iframe = card.querySelector(`#iframe-${index}`);
+
+      const updateTimes = () => {
+        currentStartTime = startInput.value.trim();
+        currentEndTime = endInput.value.trim();
+        durationTag.textContent = `Duration: ${calculateDuration(currentStartTime, currentEndTime)}s`;
+
+        if (iframe && videoId) {
+          const newStartSec = parseHmsToSeconds(currentStartTime);
+          iframe.src = `https://www.youtube.com/embed/${videoId}?start=${newStartSec}`;
+        }
+      };
+
+      startInput.addEventListener('change', updateTimes);
+      endInput.addEventListener('change', updateTimes);
+
       downloadBtn.addEventListener('click', () => {
-        handleDownload(originalUrl, clip, clipFileName, index);
+        handleDownload(
+          originalUrl, 
+          currentStartTime, 
+          currentEndTime, 
+          clipFileName, 
+          clip.comment, 
+          index
+        );
       });
     });
   }
 
-  async function handleDownload(videoUrl, clip, clipName, index) {
+  async function handleDownload(videoUrl, startTime, endTime, clipName, comment, index) {
     const downloadBtn = document.getElementById(`dl-btn-${index}`);
     const dlText = downloadBtn.querySelector('.dl-text');
     const dlLoader = downloadBtn.querySelector('.dl-loader');
@@ -123,10 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: videoUrl,
-          startTime: clip.startTime,
-          endTime: clip.endTime,
+          startTime: startTime,
+          endTime: endTime,
           clipName: clipName,
-          comment: clip.comment
+          comment: comment
         })
       });
 
@@ -136,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.error || 'Failed to download clip');
       }
 
-      statusDiv.textContent = `Saved as ${clipName}`;
+      statusDiv.textContent = `Saved segment (${startTime} to ${endTime}) as ${clipName}`;
       statusDiv.classList.add('success');
       dlText.textContent = 'Downloaded!';
 
@@ -156,10 +215,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function parseHmsToSeconds(hms) {
+    if (!hms) return 0;
     const parts = hms.split(':').map(Number);
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     return parts[0] || 0;
+  }
+
+  function calculateDuration(startHms, endHms) {
+    const startSec = parseHmsToSeconds(startHms);
+    const endSec = parseHmsToSeconds(endHms);
+    const diff = endSec - startSec;
+    return diff > 0 ? diff : 0;
   }
 
   function setLoading(isLoading) {

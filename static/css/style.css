@@ -154,6 +154,71 @@ body {
   font-style: italic;
 }
 
+.time-adjuster-panel {
+  background-color: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.time-inputs-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.time-field label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.time-field input {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--badge-text);
+  padding: 0.35rem 0.6rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  width: 85px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.time-field input:focus {
+  border-color: var(--accent-blue);
+}
+
+.time-separator {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+.duration-tag {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
 .video-wrapper {
   position: relative;
   width: 100%;
