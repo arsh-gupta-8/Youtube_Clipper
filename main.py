@@ -3,11 +3,12 @@ from time import sleep
 import re
 import yt_dlp
 from flask import Flask, render_template, request, jsonify
+import concurrent.futures
 
 app = Flask(__name__)
 downloader = YoutubeCommentDownloader()
 timeStampPattern = r"(?:(\d+):)?(\d+):(\d\d)"
-
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 times = []
 
 
@@ -82,6 +83,13 @@ def download_video(videoURL, startTime, endTime, clipName, comment):
 
   return 1
 
+
+def run_download_task(videoURL, startTime, endTime, clipName, comment):
+  try:
+    download_video(videoURL, startTime, endTime, clipName, comment)
+    print(f"[Thread Success] Downloaded: {clipName}")
+  except Exception as e:
+    print(f"[Thread Error] Failed downloading {clipName}: {e}")
 
 
 # for index, comment in enumerate(comments):
@@ -173,14 +181,12 @@ def download_clip():
   if not all([videoURL, startTime, endTime, clipName]):
     return jsonify({"error": "Missing required parameters"}), 400
 
-  try:
-    download_video(videoURL, startTime, endTime, clipName, comment)
-    return jsonify({
-      "success": True, 
-      "message": f"Successfully saved {clipName}"
-    })
-  except Exception as e:
-    return jsonify({"error": str(e)}), 500
+  executor.submit(run_download_task, videoURL, startTime, endTime, clipName, comment)
+
+  return jsonify({
+    "success": True, 
+    "message": f"Started the downlaod for {clipName} in a thread"
+  })
 
 
 if __name__ == '__main__':
