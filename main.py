@@ -2,6 +2,9 @@ from youtube_comment_downloader import YoutubeCommentDownloader, SORT_BY_POPULAR
 from time import sleep
 import re
 import yt_dlp
+from flask import Flask, render_template
+
+app = Flask(__name__)
 
 downloader = YoutubeCommentDownloader()
 
@@ -35,7 +38,7 @@ def seconds_to_hms(seconds):
 
 def download_video(videoURL, startTime, endTime, clipName, comment):
   ydl_opts = {
-    'format': 'bestvideo+bestaudio/best',
+    'format': 'bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[vcodec^=avc1]',
     'external_downloader': 'ffmpeg',
     'external_downloader_args': {
         'ffmpeg_i': ['-ss', startTime, '-to', endTime]
@@ -75,4 +78,6 @@ for index, comment in enumerate(comments):
       dwnldNumber += download_video(videoURL=videoURL, startTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) - 30), endTime=seconds_to_hms(hms_to_seconds(hms=timeStamp) + 30), clipName=f"{videoTitle}_{dwnldNumber}.mp4", comment=YTcomment)
       times.append(hms_to_seconds(hms=timeStamp))
 
-# print(times)
+@app.route('/')
+def index():
+  return render_template('index.html')
